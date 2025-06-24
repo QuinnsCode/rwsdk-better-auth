@@ -5,7 +5,7 @@ import { startRegistration } from "@simplewebauthn/browser";
 import {
   finishPasskeyRegistration,
   startPasskeyRegistration,
-} from "./functions";
+} from "./functions2";
 import { AuthLayout } from "@/app/layouts/AuthLayout";
 
 export default function Signup() {

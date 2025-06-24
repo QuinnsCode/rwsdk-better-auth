@@ -1,181 +1,243 @@
-"use server";
-import {
-  generateRegistrationOptions,
-  generateAuthenticationOptions,
-  verifyRegistrationResponse,
-  verifyAuthenticationResponse,
-  RegistrationResponseJSON,
-  AuthenticationResponseJSON,
-} from "@simplewebauthn/server";
+// app/pages/user/better-auth-functions.ts
+import { authClient } from "@/lib/auth-client";
 
-import { sessions } from "@/session/store";
-import { requestInfo } from "rwsdk/worker";
-import { db } from "@/db";
-import { env } from "cloudflare:workers";
-
-const IS_DEV = env.NODE_ENV === "development";
-
-function getWebAuthnConfig(request: Request) {
-  const rpID = env.WEBAUTHN_RP_ID ?? new URL(request.url).hostname;
-  const rpName = IS_DEV ? "Development App" : env.WEBAUTHN_APP_NAME;
-  return {
-    rpName,
-    rpID,
-  };
+export interface SignUpData {
+  email: string;
+  password: string;
+  name?: string;
 }
 
-export async function startPasskeyRegistration(username: string) {
+export interface SignInData {
+  email: string;
+  password: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  role?: string;
+  emailVerified: boolean;
+  image?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  banned?: boolean;
+  banReason?: string;
+  banExpires?: Date;
+}
+
+export interface Session {
+  id: string;
+  userId: string;
+  expiresAt: Date;
+  token: string;
+  ipAddress?: string;
+  userAgent?: string;
+  user: User;
+}
+
+// Sign up with email and password
+export const signUp = async (data: SignUpData) => {
   try {
-    console.log('Server: Starting passkey registration for:', username);
-    
-    const { rpName, rpID } = getWebAuthnConfig(requestInfo.request);
-    const { headers } = requestInfo;
-    console.log('WebAuthn config:', { rpName, rpID });
-    
-    const options = await generateRegistrationOptions({
-      rpName,
-      rpID,
-      userName: username,
-      authenticatorSelection: {
-        residentKey: "required",
-        userVerification: "preferred",
-      },
+    const result = await authClient.signUp.email({
+      email: data.email,
+      password: data.password,
+      name: data.name,
     });
     
-    console.log('Generated options:', options);
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
     
-    await sessions.save(headers, { challenge: options.challenge });
-    console.log('Saved challenge to session');
-    
-    return options;
+    return result.data;
   } catch (error) {
-    console.error('Error in startPasskeyRegistration:', error);
+    console.error("Sign up error:", error);
     throw error;
   }
-}
+};
 
-export async function startPasskeyLogin() {
-  const { rpID } = getWebAuthnConfig(requestInfo.request);
-  const { headers } = requestInfo;
-
-  const options = await generateAuthenticationOptions({
-    rpID,
-    userVerification: "preferred",
-    allowCredentials: [],
-  });
-
-  await sessions.save(headers, { challenge: options.challenge });
-
-  return options;
-}
-
-export async function finishPasskeyRegistration(
-  username: string,
-  registration: RegistrationResponseJSON,
-) {
-  const { request, headers } = requestInfo;
-  const { origin } = new URL(request.url);
-
-  const session = await sessions.load(request);
-  const challenge = session?.challenge;
-
-  if (!challenge) {
-    return false;
+// Sign in with email and password
+export const signIn = async (data: SignInData) => {
+  try {
+    const result = await authClient.signIn.email({
+      email: data.email,
+      password: data.password,
+    });
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Sign in error:", error);
+    throw error;
   }
+};
 
-  const verification = await verifyRegistrationResponse({
-    response: registration,
-    expectedChallenge: challenge,
-    expectedOrigin: origin,
-    expectedRPID: env.WEBAUTHN_RP_ID || new URL(request.url).hostname,
-    requireUserVerification: false,
-  });
-
-  if (!verification.verified || !verification.registrationInfo) {
-    return false;
+// Sign out
+export const signOut = async () => {
+  try {
+    const result = await authClient.signOut();
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Sign out error:", error);
+    throw error;
   }
+};
 
-  await sessions.save(headers, { challenge: null });
-
-  const user = await db.user.create({
-    data: {
-      username,
-    },
-  });
-
-  await db.credential.create({
-    data: {
-      userId: user.id,
-      credentialId: verification.registrationInfo.credential.id,
-      publicKey: verification.registrationInfo.credential.publicKey,
-      counter: verification.registrationInfo.credential.counter,
-    },
-  });
-
-  return true;
-}
-
-export async function finishPasskeyLogin(login: AuthenticationResponseJSON) {
-  const { request, headers } = requestInfo;
-  const { origin } = new URL(request.url);
-
-  const session = await sessions.load(request);
-  const challenge = session?.challenge;
-
-  if (!challenge) {
-    return false;
+// Get current session
+export const getCurrentSession = async (): Promise<Session | null> => {
+  try {
+    const result = await authClient.getSession();
+    
+    if (result.error) {
+      console.error("Session error:", result.error);
+      return null;
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Get session error:", error);
+    return null;
   }
+};
 
-  const credential = await db.credential.findUnique({
-    where: {
-      credentialId: login.id,
-    },
-  });
-
-  if (!credential) {
-    return false;
+// Get current user
+export const getCurrentUser = async (): Promise<User | null> => {
+  try {
+    const session = await getCurrentSession();
+    return session?.user || null;
+  } catch (error) {
+    console.error("Get user error:", error);
+    return null;
   }
+};
 
-  const verification = await verifyAuthenticationResponse({
-    response: login,
-    expectedChallenge: challenge,
-    expectedOrigin: origin,
-    expectedRPID: env.WEBAUTHN_RP_ID || new URL(request.url).hostname,
-    requireUserVerification: false,
-    credential: {
-      id: credential.credentialId,
-      publicKey: credential.publicKey,
-      counter: credential.counter,
-    },
-  });
-
-  if (!verification.verified) {
-    return false;
+// Update user profile
+export const updateUser = async (data: Partial<User>) => {
+  try {
+    const result = await authClient.updateUser(data);
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Update user error:", error);
+    throw error;
   }
+};
 
-  await db.credential.update({
-    where: {
-      credentialId: login.id,
-    },
-    data: {
-      counter: verification.authenticationInfo.newCounter,
-    },
-  });
-
-  const user = await db.user.findUnique({
-    where: {
-      id: credential.userId,
-    },
-  });
-
-  if (!user) {
-    return false;
+// Change password
+export const changePassword = async (currentPassword: string, newPassword: string) => {
+  try {
+    const result = await authClient.changePassword({
+      currentPassword,
+      newPassword,
+    });
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Change password error:", error);
+    throw error;
   }
+};
 
-  await sessions.save(headers, {
-    userId: user.id,
-    challenge: null,
-  });
+// Forgot password
+export const forgotPassword = async (email: string) => {
+  try {
+    const result = await authClient.forgetPassword({
+      email,
+      redirectTo: "/user/reset-password",
+    });
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    throw error;
+  }
+};
 
-  return true;
-}
+// Reset password
+export const resetPassword = async (token: string, password: string) => {
+  try {
+    const result = await authClient.resetPassword({
+      token,
+      password,
+    });
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Reset password error:", error);
+    throw error;
+  }
+};
+
+// List user sessions
+export const listSessions = async () => {
+  try {
+    const result = await authClient.listSessions();
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("List sessions error:", error);
+    throw error;
+  }
+};
+
+// Revoke session
+export const revokeSession = async (sessionToken: string) => {
+  try {
+    const result = await authClient.revokeSession({
+      token: sessionToken,
+    });
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Revoke session error:", error);
+    throw error;
+  }
+};
+
+// Revoke all other sessions (keep current)
+export const revokeOtherSessions = async () => {
+  try {
+    const result = await authClient.revokeOtherSessions();
+    
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+    
+    return result.data;
+  } catch (error) {
+    console.error("Revoke other sessions error:", error);
+    throw error;
+  }
+};

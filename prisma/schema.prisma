@@ -22,22 +22,219 @@ datasource db {
 }
 
 model User {
-  id          String      @id @default(uuid()) // User ID (UUID-based)
-  username    String      @unique
-  createdAt   DateTime    @default(now())
+  id        String   @id @default(uuid()) // User ID (UUID-based)
+  username  String?  @unique // Make nullable since Better Auth doesn't require it
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  credentials Credential[] // Relationship: One user can have many credentials
+  // Better Auth required fields - make them nullable
+  name          String?
+  email         String? @unique
+  emailVerified Boolean @default(false)
+  image         String?
+
+  // Relationships
+  credentials Credential[] // Your existing credential relationship
+  sessions    Session[]
+  accounts    Account[]
+
+  OrderNote  OrderNote[]
+  role       String?
+  banned     Boolean?
+  banReason  String?
+  banExpires DateTime?
+
+  members     Member[]
+  invitations Invitation[]
+
+  apikeys Apikey[]
+
+  @@map("user")
 }
 
 model Credential {
-  id            String   @id @default(uuid()) // Internal DB ID
-  userId        String   @unique // Every credential is linked to a specific user
-  user          User     @relation(fields: [userId], references: [id])
-  createdAt     DateTime @default(now())
-  credentialId  String   @unique // WebAuthn credential identifier
-  publicKey     Bytes
-  counter       Int      @default(0)
-  
+  id           String   @id @default(uuid()) // Internal DB ID
+  userId       String   @unique // Every credential is linked to a specific user
+  user         User     @relation(fields: [userId], references: [id])
+  createdAt    DateTime @default(now())
+  credentialId String   @unique // WebAuthn credential identifier
+  publicKey    Bytes
+  counter      Int      @default(0)
+
   @@index([credentialId])
   @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  impersonatedBy String?
+
+  activeOrganizationId String?
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@map("verification")
+}
+
+// Your existing models (add these back if you need them)
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  orderNumber   String      @unique
+  shipstationId Int         @unique
+  orderData     String // JSON blob of full ShipStation order
+  status        String      @default("")
+  storeId       Int?        @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  // For your internal notes/updates (for later)
+  notes         OrderNote[]
+
+  @@index([orderNumber])
+  @@index([shipstationId])
+}
+
+model OrderNote {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  userId     String? // Changed to String to match User.id
+  content    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model ShipstationWebhookResponse {
+  id           String   @id @default(uuid())
+  resourceUrl  String // URL to fetch the actual data
+  resourceType String // ORDER_NOTIFY, SHIP_NOTIFY, etc.
+  orderData    String? // JSON blob from fetching resource_url
+  processed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([resourceType])
+  @@index([processed])
+}
+
+model Organization {
+  id          String       @id
+  name        String
+  slug        String?
+  logo        String?
+  createdAt   DateTime
+  metadata    String?
+  members     Member[]
+  invitations Invitation[]
+
+  teams Team[]
+
+  @@unique([slug])
+  @@map("organization")
+}
+
+model Member {
+  id             String       @id
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String
+  createdAt      DateTime
+
+  teamId String?
+
+  @@map("member")
+}
+
+model Invitation {
+  id             String       @id
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String
+  expiresAt      DateTime
+  inviterId      String
+  user           User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  teamId String?
+
+  @@map("invitation")
+}
+
+model Team {
+  id             String       @id
+  name           String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime
+  updatedAt      DateTime?
+
+  @@map("team")
+}
+
+model Apikey {
+  id                  String    @id
+  name                String?
+  start               String?
+  prefix              String?
+  key                 String
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refillInterval      Int?
+  refillAmount        Int?
+  lastRefillAt        DateTime?
+  enabled             Boolean?
+  rateLimitEnabled    Boolean?
+  rateLimitTimeWindow Int?
+  rateLimitMax        Int?
+  requestCount        Int?
+  remaining           Int?
+  lastRequest         DateTime?
+  expiresAt           DateTime?
+  createdAt           DateTime
+  updatedAt           DateTime
+  permissions         String?
+  metadata            String?
+
+  @@map("apikey")
 }

@@ -1,16 +1,17 @@
 // app/pages/user/login.tsx (or wherever you want to place it)
 import { type AppContext } from "@/worker";
-import { BetterAuthLogin } from "./BetterAuthLogin";
-import { LogoutButton } from "./LoginButton";
-import { RoleToggleButton } from "./RoleToggleButton";
 
-export default function LoginPage({ ctx }: { ctx: AppContext }) {
+import { LogoutButton } from "@/app/pages/user/LoginButton";
+import { BetterAuthLogin } from "@/app/pages/user/BetterAuthLogin";
+import { RoleToggleButton } from "@/app/pages/user/RoleToggleButton";
+
+export default function HomePage({ ctx }: { ctx: AppContext }) {
   // If user is already logged in, redirect to home
   if (ctx.user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-12">LOGIN PAGE</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-12">HOME PAGE</h1>
           <hr className="border-b-black border-b-8 my-12"></hr>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Already Logged In</h1>
           <p className="text-gray-600 mb-4">
@@ -26,7 +27,7 @@ export default function LoginPage({ ctx }: { ctx: AppContext }) {
             >
               Go Home
             </a>
-            <div className="items-center space-x-2">
+            <div className="items-center space-x-2 mx-4">
               <LogoutButton 
                 className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                 redirectTo="/user/login"
@@ -40,7 +41,6 @@ export default function LoginPage({ ctx }: { ctx: AppContext }) {
                 userId={ctx.user.id}
               />
             </div>
-            
             {ctx.user.role === "admin" && (
               <a 
                 href="/admin" 

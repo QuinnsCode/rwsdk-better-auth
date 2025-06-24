@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "rwsdk-better-auth",
+  "name": "~~~~CHANGE ME 1~~~~",
   "main": "src/worker.tsx",
   "compatibility_date": "2025-05-07",
   "compatibility_flags": ["nodejs_compat"],
@@ -19,7 +19,7 @@
     ]
   },
   "vars": {
-    "WEBAUTHN_APP_NAME": "rwsdk-better-auth"
+    "WEBAUTHN_APP_NAME": "~~~~CHANGE ME 2~~~~"
   },
   "migrations": [
     {
@@ -30,8 +30,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "rwsdk-better-auth",
-      "database_id": "d28a1c81-d1ae-48e2-8b02-328d072b62e9"
+      "database_name": "~~~~CHANGE ME 3~~~~",
+      "database_id": "~~~~CHANGE ME 4~~~~"
     }
   ]
 }
