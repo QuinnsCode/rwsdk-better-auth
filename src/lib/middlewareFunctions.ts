@@ -166,7 +166,7 @@ export function extractOrgFromSubdomain(request: Request): string | null {
     return null;
   }
   
-  // Handle custom domains (like quinncodes.com)
+  // Handle custom domains (like yoursite.com)
   const parts = hostname.split('.');
   if (parts.length >= 3) {
     const orgSlug = parts[0];

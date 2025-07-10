@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BetterAuthLogin } from "@/app/pages/user/BetterAuthLogin";
 import { createOrganization } from "@/app/serverActions/orgs/createOrg";
+import { env } from "cloudflare:workers";
 
 interface CreateOrgClientProps {
   initialUser: any;
@@ -131,12 +132,12 @@ export function CreateOrgClient({ initialUser }: CreateOrgClientProps) {
                   placeholder="acme-corp"
                 />
                 <span className="inline-flex blur-xs items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-500 rounded-r-md text-sm">
-                  .quinncodes.com
+                  .${env.SITE_URL}
                 </span>
               </div>
               <p className="mt-2 text-sm text-gray-500">
                 <div className="inline-flex">Your organization will be available at: https://[subdomain]</div>
-                <div className="inline-flex blur-xs mx-1">.quinncodes.com</div>
+                <div className="inline-flex blur-xs mx-1">.${env.SITE_URL}</div>
               </p>
             </div>
 

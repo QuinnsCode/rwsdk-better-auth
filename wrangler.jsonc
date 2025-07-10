@@ -19,7 +19,8 @@
     ]
   },
   "vars": {
-    "WEBAUTHN_APP_NAME": "~~~~CHANGE ME 2~~~~"
+    "WEBAUTHN_APP_NAME": "~~~~CHANGE ME 2~~~~",
+    "SITE_URL": "~~~~CHANGE ME 3~~~~",
   },
   "migrations": [
     {
@@ -30,8 +31,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "~~~~CHANGE ME 3~~~~",
-      "database_id": "~~~~CHANGE ME 4~~~~"
+      "database_name": "~~~~CHANGE ME 4~~~~",
+      "database_id": "~~~~CHANGE ME 5~~~~"
     }
   ]
 }

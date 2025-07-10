@@ -60,7 +60,25 @@ Copy the database ID provided and update your `wrangler.jsonc` file:
 }
 ```
 
-### 3. Run Database Migrations
+### 3. Configure Better Auth Trusted Origins
+
+Update the trusted origins in `app/lib/auth.ts` to match your domain:
+
+```typescript
+// In app/lib/auth.ts, update the trustedOrigins array:
+trustedOrigins: [
+  "yourdomain.com",        // Replace with your actual domain
+  "*.yourdomain.com",      // Wildcard for all subdomains (REQUIRED for subdomain auth)
+  "localhost:5173",        // Development
+  "*.localhost:5173",      // Development subdomains
+  "localhost:8787",        // Wrangler dev
+  "*.localhost:8787",      // Wrangler dev subdomains
+],
+```
+
+**Critical:** The wildcard entry (`*.yourdomain.com`) is essential for authentication to work on organization subdomains.
+
+### 4. Run Database Migrations
 
 Apply the Better Auth database schema:
 
@@ -131,7 +149,7 @@ To enable dynamic subdomain routing (where each organization gets its own subdom
 
 These DNS records will route all subdomains (e.g., `org1.yourdomain.com`, `org2.yourdomain.com`) to your Cloudflare Worker, where the subdomain is used as an organization slug to identify and route to the correct organization.
 
-### 4. Deploy Your Application
+### 5. Deploy Your Application
 
 Deploy your worker to Cloudflare:
 
@@ -172,13 +190,30 @@ This ensures data isolation between different organizations using the same appli
 
 ### Better Auth Setup
 
-This project comes pre-configured with Better Auth, but you may want to customize the configuration in `app/lib/auth.ts`. The setup includes:
+This project comes pre-configured with Better Auth, but you need to update the trusted origins in `app/lib/auth.ts` to match your domain. Update the `trustedOrigins` array:
+
+```typescript
+// app/lib/auth.ts
+trustedOrigins: [
+  "yourdomain.com",        // Replace with your domain
+  "*.yourdomain.com",      // Wildcard for all subdomains
+  "localhost:5173",        // Development
+  "*.localhost:5173",      // Development subdomains
+  "localhost:8787",        // Wrangler dev
+  "*.localhost:8787",      // Wrangler dev subdomains
+],
+```
+
+**Important:** The wildcard subdomain entry (`*.yourdomain.com`) is crucial for subdomain authentication to work properly. Without this, users won't be able to authenticate on organization subdomains.
+
+The setup includes:
 
 - Email/password authentication
 - Admin plugin for user management
 - Multi-session support
 - API key authentication
 - Session management integrated with RedwoodSDK
+- Subdomain-compatible trusted origins
 
 ## Further Reading
 

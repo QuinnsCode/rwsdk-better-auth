@@ -8,8 +8,10 @@ import { multiSession } from "better-auth/plugins"
 import { env } from "cloudflare:workers";
 import { db } from "@/db";
 
-
 export const createAuth = () => {
+  // Get the site URL from env, fallback to yoursite.com
+  const siteUrl = env.SITE_URL;
+  
   return betterAuth({
     database: prismaAdapter(db, {
       provider: "sqlite",
@@ -39,8 +41,8 @@ export const createAuth = () => {
       updateAge: 60 * 60 * 24,
     },
     trustedOrigins: [
-      "quinncodes.com",
-      "*.quinncodes.com", 
+      siteUrl,                 // yoursite.com
+      `*.${siteUrl}`,          // *.yoursite.com
       "localhost:5173",
       "*.localhost:5173",
       "localhost:8787",
